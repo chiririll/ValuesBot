@@ -23,7 +23,6 @@ from bot.texts import (
     RESUME_PROMPT,
     RESTART_CONFIRM,
     TEST_FINISHED,
-    UNDO_DONE,
     UNDO_UNAVAILABLE,
     WELCOME,
 )
@@ -51,7 +50,7 @@ def progress_bar(done: int, total: int, width: int = PROGRESS_BAR_WIDTH) -> str:
         chars.append(BRAILLE_LEVELS[column_dots])
 
     percent = int(round(ratio * 100))
-    return f"<code>{''.join(chars)}</code> {percent}%"
+    return f"<code>[{''.join(chars)}]</code> {percent}%"
 
 
 def _format_option(value: Value) -> str:
@@ -68,11 +67,10 @@ def format_question_text(
     next_question = comparisons_done + 1
     bar = progress_bar(comparisons_done, estimated_total)
     return (
-        f"Вопрос <b>{next_question}</b> из {estimated_total}\n"
-        f"{bar}\n\n"
-        f"    <b>{QUESTION_PROMPT}</b>\n\n"
+        f"<b>{QUESTION_PROMPT}</b>\n\n"
         f"1️⃣ {_format_option(left)}\n\n"
-        f"2️⃣ {_format_option(right)}"
+        f"2️⃣ {_format_option(right)}\n\n"
+        f"<b>{next_question}/{estimated_total}</b> {bar}"
     )
 
 
@@ -213,29 +211,21 @@ async def cmd_undo(message: Message) -> None:
         session.last_question_chat_id is not None
         and session.last_question_message_id is not None
     ):
-        state = MergeSortState.from_json(session.state_json)
-        pair = state.current_pair()
-        if pair is not None:
-            left = VALUES[pair[0]]
-            right = VALUES[pair[1]]
-            text = format_question_text(
-                left,
-                right,
-                comparisons_done=session.comparisons_done,
-                estimated_total=session.estimated_total,
+        try:
+            await message.bot.delete_message(
+                chat_id=session.last_question_chat_id,
+                message_id=session.last_question_message_id,
             )
+        except TelegramBadRequest:
             try:
-                await message.bot.edit_message_text(
-                    text=text,
+                await message.bot.edit_message_reply_markup(
                     chat_id=session.last_question_chat_id,
                     message_id=session.last_question_message_id,
-                    reply_markup=question_keyboard(left, right),
+                    reply_markup=None,
                 )
-                return
             except TelegramBadRequest:
                 pass
 
-    await message.answer(UNDO_DONE)
     await _render_question(message, session, edit=False)
 
 
