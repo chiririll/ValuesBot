@@ -1,0 +1,11 @@
+[project]
+name = "ValuesBot"
+version = "0.1.0"
+description = "Bot for psychological test"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "aiogram>=3.28.2",
+    "aiosqlite>=0.20",
+    "python-dotenv>=1.0",
+]
