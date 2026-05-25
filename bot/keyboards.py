@@ -22,18 +22,15 @@ def resume_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def question_keyboard(left: Value, right: Value, *, can_undo: bool) -> InlineKeyboardMarkup:
-    rows = [
-        [
-            InlineKeyboardButton(text=f"1. {left.name}", callback_data="pick:1"),
-            InlineKeyboardButton(text=f"2. {right.name}", callback_data="pick:2"),
+def question_keyboard(left: Value, right: Value) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=left.name, callback_data="pick:1"),
+                InlineKeyboardButton(text=right.name, callback_data="pick:2"),
+            ]
         ]
-    ]
-    if can_undo:
-        rows.append(
-            [InlineKeyboardButton(text="◀ Отменить последний выбор", callback_data="undo")]
-        )
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+    )
 
 
 def restart_confirm_keyboard() -> InlineKeyboardMarkup:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import html
 import json
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
@@ -21,6 +23,7 @@ from bot.texts import (
     RESUME_PROMPT,
     RESTART_CONFIRM,
     TEST_FINISHED,
+    UNDO_DONE,
     UNDO_UNAVAILABLE,
     WELCOME,
 )
@@ -31,6 +34,29 @@ router = Router()
 VALUES: list[Value] = load_values()
 ESTIMATED_TOTAL = estimate_comparisons(len(VALUES))
 
+PROGRESS_BAR_WIDTH = 15
+BRAILLE_LEVELS = "\u2800\u2840\u2844\u2846\u2847\u28c7\u28e7\u28f7\u28ff"
+
+
+def progress_bar(done: int, total: int, width: int = PROGRESS_BAR_WIDTH) -> str:
+    total = max(total, 1)
+    ratio = min(max(done / total, 0.0), 1.0)
+    total_dots = width * 8
+    filled_dots = int(round(ratio * total_dots))
+    filled_dots = min(filled_dots, total_dots)
+
+    chars = []
+    for index in range(width):
+        column_dots = max(0, min(8, filled_dots - index * 8))
+        chars.append(BRAILLE_LEVELS[column_dots])
+
+    percent = int(round(ratio * 100))
+    return f"<code>{''.join(chars)}</code> {percent}%"
+
+
+def _format_option(value: Value) -> str:
+    return f"<b>{html.escape(value.name)}</b>\n<i>{html.escape(value.description)}</i>"
+
 
 def format_question_text(
     left: Value,
@@ -40,19 +66,24 @@ def format_question_text(
     estimated_total: int,
 ) -> str:
     next_question = comparisons_done + 1
+    bar = progress_bar(comparisons_done, estimated_total)
     return (
-        f"Вопрос {next_question} / ≈{estimated_total}\n\n"
-        f"{QUESTION_PROMPT}\n\n"
-        f"1. {left.name} — {left.description}\n"
-        f"2. {right.name} — {right.description}"
+        f"Вопрос <b>{next_question}</b> из {estimated_total}\n"
+        f"{bar}\n\n"
+        f"    <b>{QUESTION_PROMPT}</b>\n\n"
+        f"1️⃣ {_format_option(left)}\n\n"
+        f"2️⃣ {_format_option(right)}"
     )
 
 
 def format_result_text(ranking: list[int]) -> str:
-    lines = [TEST_FINISHED, ""]
+    lines = [f"<b>{TEST_FINISHED}</b>", ""]
     for position, value_index in enumerate(ranking, start=1):
         value = VALUES[value_index]
-        lines.append(f"{position}. {value.name} — {value.description}")
+        lines.append(
+            f"{position}. <b>{html.escape(value.name)}</b>"
+            f" — <i>{html.escape(value.description)}</i>"
+        )
     return "\n".join(lines)
 
 
@@ -112,11 +143,18 @@ async def _render_question(
         comparisons_done=session.comparisons_done,
         estimated_total=session.estimated_total,
     )
-    keyboard = question_keyboard(left, right, can_undo=bool(session.prev_state_json))
+    keyboard = question_keyboard(left, right)
     if edit:
-        await message.edit_text(text, reply_markup=keyboard)
+        sent = await message.edit_text(text, reply_markup=keyboard)
     else:
-        await message.answer(text, reply_markup=keyboard)
+        sent = await message.answer(text, reply_markup=keyboard)
+
+    if isinstance(sent, Message):
+        await db.update_last_question_message(
+            session.user_id,
+            chat_id=sent.chat.id,
+            message_id=sent.message_id,
+        )
 
 
 @router.message(Command("start"))
@@ -126,15 +164,16 @@ async def cmd_start(message: Message) -> None:
 
     if session and session.is_finished:
         await message.answer(
-            ALREADY_FINISHED + "\n\n" + format_result_text(json.loads(session.result_json or "[]")),
+            ALREADY_FINISHED
+            + "\n\n"
+            + format_result_text(json.loads(session.result_json or "[]")),
         )
         return
 
     if session and not session.is_finished:
         await message.answer(
             RESUME_PROMPT.format(
-                done=session.comparisons_done,
-                total=session.estimated_total,
+                bar=progress_bar(session.comparisons_done, session.estimated_total),
             ),
             reply_markup=resume_keyboard(),
         )
@@ -149,6 +188,55 @@ async def cmd_start(message: Message) -> None:
 @router.message(Command("restart"))
 async def cmd_restart(message: Message) -> None:
     await message.answer(RESTART_CONFIRM, reply_markup=restart_confirm_keyboard())
+
+
+@router.message(Command("undo"))
+async def cmd_undo(message: Message) -> None:
+    if message.from_user is None or message.bot is None:
+        return
+
+    session_before = await db.load_session(message.from_user.id)
+    if (
+        session_before is None
+        or session_before.is_finished
+        or not session_before.prev_state_json
+    ):
+        await message.answer(UNDO_UNAVAILABLE)
+        return
+
+    session = await db.undo_session(message.from_user.id)
+    if session is None:
+        await message.answer(UNDO_UNAVAILABLE)
+        return
+
+    if (
+        session.last_question_chat_id is not None
+        and session.last_question_message_id is not None
+    ):
+        state = MergeSortState.from_json(session.state_json)
+        pair = state.current_pair()
+        if pair is not None:
+            left = VALUES[pair[0]]
+            right = VALUES[pair[1]]
+            text = format_question_text(
+                left,
+                right,
+                comparisons_done=session.comparisons_done,
+                estimated_total=session.estimated_total,
+            )
+            try:
+                await message.bot.edit_message_text(
+                    text=text,
+                    chat_id=session.last_question_chat_id,
+                    message_id=session.last_question_message_id,
+                    reply_markup=question_keyboard(left, right),
+                )
+                return
+            except TelegramBadRequest:
+                pass
+
+    await message.answer(UNDO_DONE)
+    await _render_question(message, session, edit=False)
 
 
 @router.message(Command("result"))
@@ -224,31 +312,14 @@ async def on_pick(callback: CallbackQuery) -> None:
     await _render_question(callback.message, updated, edit=True)
 
 
-@router.callback_query(F.data == "undo")
-async def on_undo(callback: CallbackQuery) -> None:
-    if callback.message is None or callback.from_user is None:
-        return
-
-    session_before = await db.load_session(callback.from_user.id)
-    if session_before is None or session_before.is_finished or not session_before.prev_state_json:
-        await callback.answer(UNDO_UNAVAILABLE, show_alert=True)
-        return
-
-    session = await db.undo_session(callback.from_user.id)
-    if session is None:
-        await callback.answer("Сессия не найдена. Нажмите /start.", show_alert=True)
-        return
-
-    await callback.answer("Последний выбор отменён.")
-    await _render_question(callback.message, session, edit=True)
-
-
 @router.callback_query(F.data == "restart:confirm")
 async def on_restart_confirm(callback: CallbackQuery) -> None:
     await callback.answer()
     if callback.message is None:
         return
-    await callback.message.edit_text(RESTART_CONFIRM, reply_markup=restart_confirm_keyboard())
+    await callback.message.edit_text(
+        RESTART_CONFIRM, reply_markup=restart_confirm_keyboard()
+    )
 
 
 @router.callback_query(F.data == "restart:yes")

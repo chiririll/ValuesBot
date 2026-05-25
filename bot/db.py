@@ -17,9 +17,16 @@ CREATE TABLE IF NOT EXISTS sessions (
     estimated_total INTEGER NOT NULL DEFAULT 119,
     is_finished INTEGER NOT NULL DEFAULT 0,
     result_json TEXT,
+    last_question_chat_id INTEGER,
+    last_question_message_id INTEGER,
     updated_at TEXT NOT NULL
 );
 """
+
+MIGRATIONS = (
+    "ALTER TABLE sessions ADD COLUMN last_question_chat_id INTEGER",
+    "ALTER TABLE sessions ADD COLUMN last_question_message_id INTEGER",
+)
 
 
 @dataclass(slots=True)
@@ -31,6 +38,8 @@ class Session:
     estimated_total: int
     is_finished: bool
     result_json: str | None
+    last_question_chat_id: int | None
+    last_question_message_id: int | None
 
 
 def _row_to_session(row: aiosqlite.Row) -> Session:
@@ -42,12 +51,19 @@ def _row_to_session(row: aiosqlite.Row) -> Session:
         estimated_total=row["estimated_total"],
         is_finished=bool(row["is_finished"]),
         result_json=row["result_json"],
+        last_question_chat_id=row["last_question_chat_id"],
+        last_question_message_id=row["last_question_message_id"],
     )
 
 
 async def init_db() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(CREATE_TABLE_SQL)
+        for migration in MIGRATIONS:
+            try:
+                await db.execute(migration)
+            except aiosqlite.OperationalError:
+                pass
         await db.commit()
 
 
@@ -73,6 +89,8 @@ async def save_session(
     estimated_total: int,
     is_finished: bool = False,
     result_json: str | None = None,
+    last_question_chat_id: int | None = None,
+    last_question_message_id: int | None = None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
@@ -86,8 +104,10 @@ async def save_session(
                 estimated_total,
                 is_finished,
                 result_json,
+                last_question_chat_id,
+                last_question_message_id,
                 updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 state_json = excluded.state_json,
                 prev_state_json = excluded.prev_state_json,
@@ -95,6 +115,8 @@ async def save_session(
                 estimated_total = excluded.estimated_total,
                 is_finished = excluded.is_finished,
                 result_json = excluded.result_json,
+                last_question_chat_id = excluded.last_question_chat_id,
+                last_question_message_id = excluded.last_question_message_id,
                 updated_at = excluded.updated_at
             """,
             (
@@ -105,8 +127,31 @@ async def save_session(
                 estimated_total,
                 int(is_finished),
                 result_json,
+                last_question_chat_id,
+                last_question_message_id,
                 now,
             ),
+        )
+        await db.commit()
+
+
+async def update_last_question_message(
+    user_id: int,
+    *,
+    chat_id: int,
+    message_id: int,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            UPDATE sessions
+            SET last_question_chat_id = ?,
+                last_question_message_id = ?,
+                updated_at = ?
+            WHERE user_id = ?
+            """,
+            (chat_id, message_id, now, user_id),
         )
         await db.commit()
 
