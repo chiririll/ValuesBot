@@ -7,12 +7,14 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
-from bot.config import require_bot_token
-from bot.db import init_db
-from bot.handlers import router
+from bot.config import load_settings
+from bot.core.values import load_catalog
+from bot.db.sessions_repo import SessionsRepository
+from bot.handlers import build_router
+from bot.services.session_service import SessionService
+from bot.views.renderer import Renderer
 
 logging.basicConfig(level=logging.INFO)
-
 
 BOT_COMMANDS = [
     BotCommand(command="start", description="Начать или продолжить тест"),
@@ -23,15 +25,23 @@ BOT_COMMANDS = [
 
 
 async def run_bot() -> None:
-    await init_db()
+    settings = load_settings()
+    catalog = load_catalog(settings.values_path)
+    repo = SessionsRepository(settings.db_path)
+    await repo.init()
+    service = SessionService(repo, catalog)
+    renderer = Renderer(catalog)
 
     bot = Bot(
-        token=require_bot_token(),
+        token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     await bot.set_my_commands(BOT_COMMANDS)
 
     dispatcher = Dispatcher()
-    dispatcher.include_router(router)
+    dispatcher.include_router(build_router(service, renderer))
 
-    await dispatcher.start_polling(bot)
+    try:
+        await dispatcher.start_polling(bot)
+    finally:
+        await repo.close()

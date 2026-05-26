@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -20,20 +19,7 @@ class MergeSortState:
         return cls(queue=[[index] for index in range(n)])
 
     @classmethod
-    def from_json(cls, payload: str) -> MergeSortState:
-        data: dict[str, Any] = json.loads(payload)
-        legacy_runs = data.get("runs")
-        if legacy_runs is not None and "queue" not in data:
-            return cls(
-                queue=[list(run) for run in legacy_runs],
-                next_pass=[list(run) for run in data.get("next_runs", [])],
-                merge_left=list(data.get("merge_left", [])),
-                merge_right=list(data.get("merge_right", [])),
-                merged=list(data.get("merged", [])),
-                finished=bool(data.get("finished", False)),
-                final_result=list(data.get("final_result", [])),
-            )
-
+    def from_dict(cls, data: dict[str, Any]) -> MergeSortState:
         return cls(
             queue=[list(run) for run in data["queue"]],
             next_pass=[list(run) for run in data.get("next_pass", [])],
@@ -44,19 +30,16 @@ class MergeSortState:
             final_result=list(data.get("final_result", [])),
         )
 
-    def to_json(self) -> str:
-        return json.dumps(
-            {
-                "queue": self.queue,
-                "next_pass": self.next_pass,
-                "merge_left": self.merge_left,
-                "merge_right": self.merge_right,
-                "merged": self.merged,
-                "finished": self.finished,
-                "final_result": self.final_result,
-            },
-            ensure_ascii=False,
-        )
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "queue": self.queue,
+            "next_pass": self.next_pass,
+            "merge_left": self.merge_left,
+            "merge_right": self.merge_right,
+            "merged": self.merged,
+            "finished": self.finished,
+            "final_result": self.final_result,
+        }
 
     def current_pair(self) -> tuple[int, int] | None:
         if self.finished:

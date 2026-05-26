@@ -4,8 +4,6 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from bot.config import VALUES_PATH
-
 CATEGORY_ORDER = ("terminal", "instrumental")
 TOP_THEMES_COUNT = 2
 
@@ -56,9 +54,8 @@ def estimate_comparisons(n: int) -> int:
     return n * levels - (1 << levels) + 1
 
 
-def load_catalog(path: Path | None = None) -> Catalog:
-    source = path or VALUES_PATH
-    raw = json.loads(source.read_text(encoding="utf-8"))
+def load_catalog(path: Path) -> Catalog:
+    raw = json.loads(path.read_text(encoding="utf-8"))
 
     categories: dict[str, Category] = {}
     themes: dict[str, Theme] = {}
@@ -97,7 +94,7 @@ def load_catalog(path: Path | None = None) -> Catalog:
         )
 
     if not categories:
-        raise ValueError(f"No categories found in {source}")
+        raise ValueError(f"No categories found in {path}")
 
     return Catalog(categories=categories, themes=themes, values=values)
 
@@ -116,16 +113,8 @@ def max_top_values_count(catalog: Catalog, category_key: str) -> int:
 
 
 def max_lower_triples_count(catalog: Catalog, category_key: str) -> int:
-    """Worst-case number of triple questions for the category's lower themes.
-
-    Maximises when top themes are the smallest, leaving the largest themes
-    in the "lower" pool. Pairs/singletons in the remainder are auto-survived
-    without a question.
-    """
     category = catalog.categories[category_key]
-    sizes = sorted(
-        len(catalog.themes[theme_key].value_keys) for theme_key in category.theme_keys
-    )
+    sizes = sorted(len(catalog.themes[theme_key].value_keys) for theme_key in category.theme_keys)
     lower_total = sum(sizes[: max(0, len(sizes) - TOP_THEMES_COUNT)])
     return lower_total // 3
 

@@ -23,7 +23,7 @@ Telegram-бот для прохождения теста на ранжирова
 
 ## Требования
 
-- Python 3.12
+- Python 3.11–3.12
 - [uv](https://docs.astral.sh/uv/) (рекомендуется)
 
 ## Установка
@@ -31,7 +31,7 @@ Telegram-бот для прохождения теста на ранжирова
 ```bash
 git clone <repository-url>
 cd ValuesBot
-uv sync
+uv sync --group dev
 ```
 
 ## Настройка
@@ -40,7 +40,7 @@ uv sync
 2. Скопируйте файл окружения:
 
 ```bash
-cp .env.example .env
+cp example.env .env
 ```
 
 3. Укажите токен в `.env`:
@@ -64,25 +64,64 @@ uv run python main.py
 | `/restart` | Начать тест заново (с подтверждением) |
 | `/result` | Показать итоговый результат |
 
+## Разработка
+
+```bash
+# Тесты с покрытием
+uv run pytest
+uv run pytest --cov=bot --cov-report=term-missing
+
+# Линтер и типы
+uv run ruff check bot tests
+uv run ruff format bot tests
+uv run mypy bot
+
+# Pre-commit (один раз)
+uv run pre-commit install
+uv run pre-commit run --all-files
+```
+
+Тесты используют компактный каталог `tests/fixtures/values.json`, а не продакшен-данные из `data/values.json`.
+
+**Known limitation:** защита от гонок при быстрых тапах реализована через `asyncio.Lock` на пользователя в рамках одного процесса polling. Multi-process deployment потребует версионирования строк в БД или внешней блокировки.
+
 ## Структура проекта
 
 ```
 ValuesBot/
 ├── bot/
-│   ├── config.py      # конфигурация и пути
-│   ├── values.py      # загрузка каталога из data/values.json
-│   ├── testflow.py    # оркестратор теста (4 трека, round-robin)
-│   ├── sort.py        # инкрементальный merge sort
-│   ├── db.py          # хранение сессий в SQLite
-│   ├── keyboards.py   # инлайн-клавиатуры
-│   ├── texts.py       # тексты сообщений
-│   ├── handlers.py    # обработчики команд и callback
-│   └── bot.py         # точка входа бота
+│   ├── config.py              # Settings, load_settings()
+│   ├── bot.py                 # DI-сборка и start_polling
+│   ├── core/
+│   │   ├── sort.py            # инкрементальный merge sort
+│   │   ├── stages.py          # Stage-стратегии (themes/values/lower)
+│   │   ├── testflow.py        # TestState, TestResult
+│   │   └── values.py          # Catalog, load_catalog
+│   ├── db/
+│   │   └── sessions_repo.py   # SQLite-сессии
+│   ├── services/
+│   │   ├── events.py          # SessionEvent (Welcome/Question/Finished/…)
+│   │   └── session_service.py # бизнес-логика сессии + per-user lock
+│   ├── views/
+│   │   ├── formatting.py      # тексты вопросов и результатов
+│   │   ├── renderer.py        # SessionEvent → сообщение
+│   │   ├── targets.py         # AnswerTarget / EditMessageTarget
+│   │   ├── keyboards.py
+│   │   └── texts.py
+│   └── handlers/
+│       ├── commands.py        # /start, /undo, /restart, /result
+│       └── callbacks.py       # start:*, pick:*, restart:*
+├── tests/
+│   ├── fixtures/values.json
+│   ├── core/
+│   ├── views/
+│   ├── db/
+│   ├── services/
+│   └── handlers/
 ├── data/
-│   └── values.json    # терминальные и инструментальные ценности
+│   └── values.json
 ├── main.py
-├── pyproject.toml
-└── .env.example
+└── pyproject.toml
 ```
 
 ## Формат данных
