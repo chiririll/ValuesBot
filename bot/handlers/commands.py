@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import logging
-from contextlib import suppress
 
 from aiogram import Router
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from bot.handlers.helpers import render_event
+from bot.handlers.helpers import clear_last_question_message, render_event
 from bot.services import events
 from bot.services.session_service import SessionService
 from bot.views.renderer import Renderer
@@ -29,8 +27,13 @@ def build_router(service: SessionService, renderer: Renderer) -> Router:
 
     @router.message(Command("restart"))
     async def cmd_restart(message: Message) -> None:
-        if message.from_user is None:
+        if message.from_user is None or message.bot is None:
             return
+
+        session_before = await service.load_session(message.from_user.id)
+        if session_before is not None:
+            await clear_last_question_message(message.bot, session_before)
+
         event = service.restart_confirm()
         await render_event(renderer, event, AnswerTarget(message), service, message.from_user.id)
 
@@ -54,22 +57,7 @@ def build_router(service: SessionService, renderer: Renderer) -> Router:
             )
             return
 
-        if (
-            session_before.last_question_chat_id is not None
-            and session_before.last_question_message_id is not None
-        ):
-            try:
-                await message.bot.delete_message(
-                    chat_id=session_before.last_question_chat_id,
-                    message_id=session_before.last_question_message_id,
-                )
-            except TelegramBadRequest:
-                with suppress(TelegramBadRequest):  # pragma: no cover
-                    await message.bot.edit_message_reply_markup(
-                        chat_id=session_before.last_question_chat_id,
-                        message_id=session_before.last_question_message_id,
-                        reply_markup=None,
-                    )
+        await clear_last_question_message(message.bot, session_before)
 
         event = await service.undo(message.from_user.id)
         await render_event(renderer, event, AnswerTarget(message), service, message.from_user.id)
