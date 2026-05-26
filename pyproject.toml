@@ -7,7 +7,6 @@ requires-python = ">=3.11,<3.13"
 dependencies = [
     "aiogram>=3.28.2",
     "aiosqlite>=0.20",
-    "python-dotenv>=1.0",
 ]
 
 [dependency-groups]
