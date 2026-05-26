@@ -7,25 +7,15 @@ from pathlib import Path
 
 import aiosqlite
 
-CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sessions (
-    user_id INTEGER PRIMARY KEY,
-    state_json TEXT NOT NULL,
-    prev_state_json TEXT,
-    comparisons_done INTEGER NOT NULL DEFAULT 0,
-    estimated_total INTEGER NOT NULL DEFAULT 119,
-    is_finished INTEGER NOT NULL DEFAULT 0,
-    result_json TEXT,
-    last_question_chat_id INTEGER,
-    last_question_message_id INTEGER,
-    updated_at TEXT NOT NULL
-);
-"""
+from bot.db._sql_loader import load_migrations, load_sql
 
-MIGRATIONS = (
-    "ALTER TABLE sessions ADD COLUMN last_question_chat_id INTEGER",
-    "ALTER TABLE sessions ADD COLUMN last_question_message_id INTEGER",
-)
+_SQL_CREATE_TABLE = load_sql("create_table")
+_SQL_LOAD_SESSION = load_sql("load_session")
+_SQL_UPSERT_SESSION = load_sql("upsert_session")
+_SQL_UPDATE_LAST_QUESTION_MESSAGE = load_sql("update_last_question_message")
+_SQL_DELETE_SESSION = load_sql("delete_session")
+_SQL_UNDO_SESSION = load_sql("undo_session")
+_SQL_MIGRATIONS = load_migrations()
 
 
 @dataclass(slots=True)
@@ -61,10 +51,10 @@ class SessionsRepository:
 
     async def init(self) -> None:
         async with aiosqlite.connect(self._db_path) as db:
-            await db.execute(CREATE_TABLE_SQL)
-            for migration in MIGRATIONS:
+            await db.executescript(_SQL_CREATE_TABLE)
+            for migration in _SQL_MIGRATIONS:
                 with suppress(aiosqlite.OperationalError):
-                    await db.execute(migration)
+                    await db.executescript(migration)
             await db.commit()
 
     async def close(self) -> None:
@@ -73,10 +63,7 @@ class SessionsRepository:
     async def load(self, user_id: int) -> Session | None:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM sessions WHERE user_id = ?",
-                (user_id,),
-            )
+            cursor = await db.execute(_SQL_LOAD_SESSION, (user_id,))
             row = await cursor.fetchone()
             if row is None:
                 return None
@@ -98,30 +85,7 @@ class SessionsRepository:
         now = datetime.now(UTC).isoformat()
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
-                """
-                INSERT INTO sessions (
-                    user_id,
-                    state_json,
-                    prev_state_json,
-                    comparisons_done,
-                    estimated_total,
-                    is_finished,
-                    result_json,
-                    last_question_chat_id,
-                    last_question_message_id,
-                    updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(user_id) DO UPDATE SET
-                    state_json = excluded.state_json,
-                    prev_state_json = excluded.prev_state_json,
-                    comparisons_done = excluded.comparisons_done,
-                    estimated_total = excluded.estimated_total,
-                    is_finished = excluded.is_finished,
-                    result_json = excluded.result_json,
-                    last_question_chat_id = excluded.last_question_chat_id,
-                    last_question_message_id = excluded.last_question_message_id,
-                    updated_at = excluded.updated_at
-                """,
+                _SQL_UPSERT_SESSION,
                 (
                     user_id,
                     state_json,
@@ -147,13 +111,7 @@ class SessionsRepository:
         now = datetime.now(UTC).isoformat()
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
-                """
-                UPDATE sessions
-                SET last_question_chat_id = ?,
-                    last_question_message_id = ?,
-                    updated_at = ?
-                WHERE user_id = ?
-                """,
+                _SQL_UPDATE_LAST_QUESTION_MESSAGE,
                 (chat_id, message_id, now, user_id),
             )
             await db.commit()
@@ -179,7 +137,7 @@ class SessionsRepository:
 
     async def delete(self, user_id: int) -> None:
         async with aiosqlite.connect(self._db_path) as db:
-            await db.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            await db.execute(_SQL_DELETE_SESSION, (user_id,))
             await db.commit()
 
     async def undo(self, user_id: int) -> Session | None:
@@ -191,16 +149,7 @@ class SessionsRepository:
         comparisons_done = max(session.comparisons_done - 1, 0)
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
-                """
-                UPDATE sessions
-                SET state_json = ?,
-                    prev_state_json = NULL,
-                    comparisons_done = ?,
-                    is_finished = 0,
-                    result_json = NULL,
-                    updated_at = ?
-                WHERE user_id = ?
-                """,
+                _SQL_UNDO_SESSION,
                 (
                     session.prev_state_json,
                     comparisons_done,
