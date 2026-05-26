@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,7 +8,6 @@ import aiosqlite
 
 from bot.db._sql_loader import load_migrations, load_sql
 
-_SQL_CREATE_TABLE = load_sql("create_table")
 _SQL_LOAD_SESSION = load_sql("load_session")
 _SQL_UPSERT_SESSION = load_sql("upsert_session")
 _SQL_UPDATE_LAST_QUESTION_MESSAGE = load_sql("update_last_question_message")
@@ -51,10 +49,12 @@ class SessionsRepository:
 
     async def init(self) -> None:
         async with aiosqlite.connect(self._db_path) as db:
-            await db.executescript(_SQL_CREATE_TABLE)
             for migration in _SQL_MIGRATIONS:
-                with suppress(aiosqlite.OperationalError):
+                try:
                     await db.executescript(migration)
+                except aiosqlite.OperationalError as error:
+                    if "duplicate column name" not in str(error).lower():
+                        raise
             await db.commit()
 
     async def close(self) -> None:

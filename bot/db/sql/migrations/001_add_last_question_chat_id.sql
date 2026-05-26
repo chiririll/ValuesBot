@@ -1,1 +1,1 @@
-ALTER TABLE sessions ADD COLUMN last_question_chat_id INTEGER;
+﻿ALTER TABLE sessions ADD COLUMN last_question_chat_id INTEGER;
