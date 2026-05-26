@@ -7,13 +7,14 @@ from aiogram.types import CallbackQuery, Message, User
 
 from bot.handlers import callbacks
 from bot.services import events
+from bot.services.errors import StaleCallbackError
 
 
 @pytest.fixture
 def callback() -> AsyncMock:
     mock = AsyncMock(spec=CallbackQuery)
     mock.from_user = User(id=1, is_bot=False, first_name="Test")
-    mock.data = "pick:1"
+    mock.data = "pick:10:1:1"
     mock.message = AsyncMock(spec=Message)
     mock.message.edit_text = AsyncMock(return_value=MagicMock(chat=MagicMock(id=1), message_id=1))
     mock.answer = AsyncMock()
@@ -34,6 +35,8 @@ def renderer() -> AsyncMock:
 async def test_on_start_new(callback: AsyncMock, service: AsyncMock, renderer: AsyncMock) -> None:
     service.create_new = AsyncMock(
         return_value=events.Question(
+            session_id=10,
+            question_id=1,
             track=MagicMock(),
             keys=("A", "B"),
             comparisons_done=0,
@@ -43,6 +46,7 @@ async def test_on_start_new(callback: AsyncMock, service: AsyncMock, renderer: A
     router = callbacks.build_router(service, renderer)
 
     with patch("bot.handlers.callbacks.render_event", new_callable=AsyncMock) as render:
+        callback.data = "start:new"
         handler = router.callback_query.handlers[0].callback
         await handler(callback)
         service.create_new.assert_awaited_once_with(1)
@@ -53,6 +57,8 @@ async def test_on_start_new(callback: AsyncMock, service: AsyncMock, renderer: A
 async def test_on_pick(callback: AsyncMock, service: AsyncMock, renderer: AsyncMock) -> None:
     service.advance = AsyncMock(
         return_value=events.Question(
+            session_id=10,
+            question_id=2,
             track=MagicMock(),
             keys=("A", "B"),
             comparisons_done=1,
@@ -64,8 +70,20 @@ async def test_on_pick(callback: AsyncMock, service: AsyncMock, renderer: AsyncM
     with patch("bot.handlers.callbacks.render_event", new_callable=AsyncMock) as render:
         handler = router.callback_query.handlers[2].callback
         await handler(callback)
-        service.advance.assert_awaited_once_with(1, 1)
+        service.advance.assert_awaited_once_with(1, 10, 1, 1)
         render.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_on_pick_stale_callback(
+    callback: AsyncMock, service: AsyncMock, renderer: AsyncMock
+) -> None:
+    service.advance = AsyncMock(side_effect=StaleCallbackError())
+    router = callbacks.build_router(service, renderer)
+
+    handler = router.callback_query.handlers[2].callback
+    await handler(callback)
+    callback.answer.assert_awaited()
 
 
 @pytest.mark.asyncio
@@ -84,6 +102,8 @@ async def test_on_pick_no_session(
 async def test_on_restart_yes(callback: AsyncMock, service: AsyncMock, renderer: AsyncMock) -> None:
     service.restart = AsyncMock(
         return_value=events.Question(
+            session_id=11,
+            question_id=1,
             track=MagicMock(),
             keys=("A", "B"),
             comparisons_done=0,
@@ -93,7 +113,8 @@ async def test_on_restart_yes(callback: AsyncMock, service: AsyncMock, renderer:
     router = callbacks.build_router(service, renderer)
 
     with patch("bot.handlers.callbacks.render_event", new_callable=AsyncMock) as render:
+        callback.data = "restart:yes:10"
         handler = router.callback_query.handlers[4].callback
         await handler(callback)
-        service.restart.assert_awaited_once_with(1)
+        service.restart.assert_awaited_once_with(1, 10)
         render.assert_awaited_once()

@@ -41,13 +41,18 @@ async def test_render_welcome(renderer: Renderer, target: AsyncMock) -> None:
 
 @pytest.mark.asyncio
 async def test_render_resume(renderer: Renderer, target: AsyncMock) -> None:
-    await renderer.render(events.Resume(comparisons_done=5, estimated_total=50), target)
+    await renderer.render(
+        events.Resume(session_id=1, comparisons_done=5, estimated_total=50),
+        target,
+    )
     assert "50%" in target.send.await_args.args[0] or "%" in target.send.await_args.args[0]
 
 
 @pytest.mark.asyncio
 async def test_render_question_themes(renderer: Renderer, target: AsyncMock) -> None:
     event = events.Question(
+        session_id=1,
+        question_id=1,
         track=TrackId("terminal", STAGE_THEMES),
         keys=("Тема A", "Тема B"),
         comparisons_done=0,
@@ -62,6 +67,8 @@ async def test_render_question_themes(renderer: Renderer, target: AsyncMock) -> 
 @pytest.mark.asyncio
 async def test_render_question_lower(renderer: Renderer, target: AsyncMock) -> None:
     event = events.Question(
+        session_id=1,
+        question_id=2,
         track=TrackId("terminal", STAGE_LOWER),
         keys=("A1", "A2", "A3"),
         comparisons_done=0,
@@ -94,7 +101,7 @@ async def test_render_finished(renderer: Renderer, target: AsyncMock, catalog: C
         (events.AlreadyFinished(), ALREADY_FINISHED),
         (events.NoResult(), NO_RESULT),
         (events.UndoUnavailable(), UNDO_UNAVAILABLE),
-        (events.RestartConfirm(), RESTART_CONFIRM),
+        (events.RestartConfirm(session_id=1), RESTART_CONFIRM),
     ],
 )
 async def test_render_simple_messages(

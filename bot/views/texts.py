@@ -44,6 +44,10 @@ TEST_FINISHED = "Тест завершён! Вот ваши результаты
 
 SESSION_NOT_FOUND_ALERT = "Сессия не найдена. Нажмите /start."
 
+STALE_CALLBACK_ALERT = "Это устаревшая кнопка. Используйте /start."
+
+NO_ACTIVE_SESSION = "Активной сессии нет. Нажмите /start."
+
 BTN_START = "Начать"
 BTN_CONTINUE = "Продолжить"
 BTN_RESTART = "Начать заново"

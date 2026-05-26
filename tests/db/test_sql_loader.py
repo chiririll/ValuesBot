@@ -13,7 +13,7 @@ from bot.db._sql_loader import load_migrations, load_sql
 
 
 def test_load_sql_returns_text_for_known_query() -> None:
-    sql = load_sql("load_session")
+    sql = load_sql("load_session_by_user")
     assert isinstance(sql, str)
     assert sql.strip(), "expected non-empty SQL text"
 

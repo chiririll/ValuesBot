@@ -15,17 +15,16 @@ def _session_with_last_question(
     chat_id: int | None = 100,
     message_id: int | None = 200,
     *,
-    is_finished: bool = False,
     prev_state_json: str | None = '{"old": true}',
 ) -> Session:
     return Session(
+        id=10,
         user_id=1,
         state_json='{"current": true}',
         prev_state_json=prev_state_json,
         comparisons_done=1,
         estimated_total=10,
-        is_finished=is_finished,
-        result_json=None,
+        question_id=2,
         last_question_chat_id=chat_id,
         last_question_message_id=message_id,
     )
@@ -69,14 +68,12 @@ async def test_cmd_restart_no_session(
     message: AsyncMock, service: AsyncMock, renderer: AsyncMock
 ) -> None:
     service.load_session = AsyncMock(return_value=None)
-    service.restart_confirm = MagicMock(return_value=events.RestartConfirm())
     router = commands.build_router(service, renderer)
 
-    with patch("bot.handlers.commands.render_event", new_callable=AsyncMock) as render:
-        handler = router.message.handlers[1].callback
-        await handler(message)
-        render.assert_awaited_once()
-        message.bot.delete_message.assert_not_awaited()
+    handler = router.message.handlers[1].callback
+    await handler(message)
+    message.answer.assert_awaited_once()
+    message.bot.delete_message.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -84,13 +81,14 @@ async def test_cmd_restart_clears_previous_question(
     message: AsyncMock, service: AsyncMock, renderer: AsyncMock
 ) -> None:
     service.load_session = AsyncMock(return_value=_session_with_last_question())
-    service.restart_confirm = MagicMock(return_value=events.RestartConfirm())
+    service.restart_confirm = MagicMock(return_value=events.RestartConfirm(session_id=10))
     router = commands.build_router(service, renderer)
 
     with patch("bot.handlers.commands.render_event", new_callable=AsyncMock) as render:
         handler = router.message.handlers[1].callback
         await handler(message)
         message.bot.delete_message.assert_awaited_once_with(chat_id=100, message_id=200)
+        service.restart_confirm.assert_called_once_with(10)
         render.assert_awaited_once()
 
 
@@ -99,7 +97,7 @@ async def test_cmd_restart_falls_back_to_removing_keyboard(
     message: AsyncMock, service: AsyncMock, renderer: AsyncMock
 ) -> None:
     service.load_session = AsyncMock(return_value=_session_with_last_question())
-    service.restart_confirm = MagicMock(return_value=events.RestartConfirm())
+    service.restart_confirm = MagicMock(return_value=events.RestartConfirm(session_id=10))
     message.bot.delete_message = AsyncMock(
         side_effect=TelegramBadRequest(method=MagicMock(), message="too old")
     )
@@ -120,7 +118,7 @@ async def test_cmd_restart_skips_cleanup_when_no_last_question(
     service.load_session = AsyncMock(
         return_value=_session_with_last_question(chat_id=None, message_id=None)
     )
-    service.restart_confirm = MagicMock(return_value=events.RestartConfirm())
+    service.restart_confirm = MagicMock(return_value=events.RestartConfirm(session_id=10))
     router = commands.build_router(service, renderer)
 
     with patch("bot.handlers.commands.render_event", new_callable=AsyncMock) as render:

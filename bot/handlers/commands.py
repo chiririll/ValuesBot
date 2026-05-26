@@ -11,6 +11,7 @@ from bot.services import events
 from bot.services.session_service import SessionService
 from bot.views.renderer import Renderer
 from bot.views.targets import AnswerTarget
+from bot.views.texts import NO_ACTIVE_SESSION
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,12 @@ def build_router(service: SessionService, renderer: Renderer) -> Router:
             return
 
         session_before = await service.load_session(message.from_user.id)
-        if session_before is not None:
-            await clear_last_question_message(message.bot, session_before)
+        if session_before is None:
+            await message.answer(NO_ACTIVE_SESSION)
+            return
 
-        event = service.restart_confirm()
+        await clear_last_question_message(message.bot, session_before)
+        event = service.restart_confirm(session_before.id)
         await render_event(renderer, event, AnswerTarget(message), service, message.from_user.id)
 
     @router.message(Command("undo"))
@@ -43,11 +46,7 @@ def build_router(service: SessionService, renderer: Renderer) -> Router:
             return
 
         session_before = await service.load_session(message.from_user.id)
-        if (
-            session_before is None
-            or session_before.is_finished
-            or not session_before.prev_state_json
-        ):
+        if session_before is None or not session_before.prev_state_json:
             await render_event(
                 renderer,
                 events.UndoUnavailable(),

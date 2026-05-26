@@ -13,12 +13,15 @@ class Welcome:
 
 @dataclass(frozen=True, slots=True)
 class Resume:
+    session_id: int
     comparisons_done: int
     estimated_total: int
 
 
 @dataclass(frozen=True, slots=True)
 class Question:
+    session_id: int
+    question_id: int
     track: TrackId
     keys: tuple[str, ...]
     comparisons_done: int
@@ -47,7 +50,7 @@ class UndoUnavailable:
 
 @dataclass(frozen=True, slots=True)
 class RestartConfirm:
-    pass
+    session_id: int
 
 
 SessionEvent = (

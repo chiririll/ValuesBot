@@ -29,11 +29,15 @@ class Renderer:
                     WELCOME.format(total=total),
                     keyboards.start_keyboard(),
                 )
-            case events.Resume(comparisons_done=done, estimated_total=total):
+            case events.Resume(
+                session_id=session_id,
+                comparisons_done=done,
+                estimated_total=total,
+            ):
                 bar = formatting.progress_bar(done, total)
                 return await target.send(
                     RESUME_PROMPT.format(bar=bar),
-                    keyboards.resume_keyboard(),
+                    keyboards.resume_keyboard(session_id),
                 )
             case events.Question() as question:
                 text = formatting.format_question_text(
@@ -47,7 +51,14 @@ class Renderer:
                     formatting.button_label(self._catalog, question.track, key)
                     for key in question.keys
                 ]
-                return await target.send(text, keyboards.question_keyboard(labels))
+                return await target.send(
+                    text,
+                    keyboards.question_keyboard(
+                        labels,
+                        session_id=question.session_id,
+                        question_id=question.question_id,
+                    ),
+                )
             case events.Finished(result=result):
                 return await target.send(
                     formatting.format_result_text(self._catalog, result),
@@ -59,6 +70,9 @@ class Renderer:
                 return await target.send(NO_RESULT, None)
             case events.UndoUnavailable():
                 return await target.send(UNDO_UNAVAILABLE, None)
-            case events.RestartConfirm():
-                return await target.send(RESTART_CONFIRM, keyboards.restart_confirm_keyboard())
+            case events.RestartConfirm(session_id=session_id):
+                return await target.send(
+                    RESTART_CONFIRM,
+                    keyboards.restart_confirm_keyboard(session_id),
+                )
         return None
