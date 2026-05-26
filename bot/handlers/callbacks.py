@@ -9,6 +9,7 @@ from bot.handlers.helpers import render_event
 from bot.services.session_service import SessionService
 from bot.views.renderer import Renderer
 from bot.views.targets import EditMessageTarget
+from bot.views.texts import SESSION_NOT_FOUND_ALERT
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def build_router(service: SessionService, renderer: Renderer) -> Router:
         try:
             event = await service.advance(callback.from_user.id, choice)
         except RuntimeError:
-            await callback.answer("Сессия не найдена. Нажмите /start.", show_alert=True)
+            await callback.answer(SESSION_NOT_FOUND_ALERT, show_alert=True)
             return
 
         await callback.answer()

@@ -5,7 +5,17 @@ import html
 from bot.core.stages import STAGE_LOWER, STAGE_THEMES, TrackId
 from bot.core.testflow import TestResult
 from bot.core.values import CATEGORY_ORDER, Catalog, Theme, ValueItem, theme_examples
-from bot.views.texts import LOWER_PROMPT, QUESTION_PROMPT, TEST_FINISHED
+from bot.views.texts import (
+    CATEGORY_HEADER_SUFFIX_LOWER,
+    CATEGORY_HEADER_SUFFIX_THEMES,
+    LOWER_PROMPT,
+    QUESTION_PROMPT,
+    RESULT_HEADER_ALSO_IMPORTANT,
+    RESULT_HEADER_IMPORTANT,
+    RESULT_HEADER_LESS_IMPORTANT,
+    TEST_FINISHED,
+    THEME_EXAMPLES_PREFIX,
+)
 
 PROGRESS_BAR_WIDTH = 15
 BRAILLE_LEVELS = "\u2800\u2840\u2844\u2846\u2847\u28c7\u28e7\u28f7\u28ff"
@@ -31,9 +41,9 @@ def progress_bar(done: int, total: int, width: int = PROGRESS_BAR_WIDTH) -> str:
 def _category_header(catalog: Catalog, track: TrackId) -> str:
     category = catalog.categories[track.category]
     if track.stage == STAGE_THEMES:
-        suffix = " · Сравнение тем"
+        suffix = CATEGORY_HEADER_SUFFIX_THEMES
     elif track.stage == STAGE_LOWER:
-        suffix = " · Дополнительные ценности"
+        suffix = CATEGORY_HEADER_SUFFIX_LOWER
     else:
         suffix = ""
     return f"<b>{html.escape(category.name)}{suffix}</b>"
@@ -45,7 +55,10 @@ def _format_value_option(value: ValueItem) -> str:
 
 def _format_theme_option(catalog: Catalog, theme: Theme) -> str:
     examples = ", ".join(theme_examples(theme, catalog, 3))
-    return f"<b>{html.escape(theme.name)}</b>\n<i>например: {html.escape(examples)}</i>"
+    return (
+        f"<b>{html.escape(theme.name)}</b>\n"
+        f"<i>{THEME_EXAMPLES_PREFIX}: {html.escape(examples)}</i>"
+    )
 
 
 def _format_option_card(catalog: Catalog, track: TrackId, key: str) -> str:
@@ -98,7 +111,7 @@ def format_result_text(catalog: Catalog, result: TestResult) -> str:
 
         if category_result.important:
             lines.append("")
-            lines.append("<b>Важные (по убыванию значимости):</b>")
+            lines.append(f"<b>{RESULT_HEADER_IMPORTANT}</b>")
             for position, value_key in enumerate(category_result.important, start=1):
                 value = catalog.values[value_key]
                 lines.append(
@@ -108,7 +121,7 @@ def format_result_text(catalog: Catalog, result: TestResult) -> str:
 
         if category_result.also_important:
             lines.append("")
-            lines.append("<b>Также важные (без определённого порядка):</b>")
+            lines.append(f"<b>{RESULT_HEADER_ALSO_IMPORTANT}</b>")
             for value_key in category_result.also_important:
                 value = catalog.values[value_key]
                 lines.append(
@@ -117,7 +130,7 @@ def format_result_text(catalog: Catalog, result: TestResult) -> str:
 
         if category_result.less_important:
             lines.append("")
-            lines.append("<b>Менее важные:</b>")
+            lines.append(f"<b>{RESULT_HEADER_LESS_IMPORTANT}</b>")
             for value_key in category_result.less_important:
                 value = catalog.values[value_key]
                 lines.append(

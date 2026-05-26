@@ -2,11 +2,19 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from bot.views.texts import (
+    BTN_CONTINUE,
+    BTN_RESTART,
+    BTN_RESTART_CONFIRM_NO,
+    BTN_RESTART_CONFIRM_YES,
+    BTN_START,
+)
+
 
 def start_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Начать", callback_data="start:new")],
+            [InlineKeyboardButton(text=BTN_START, callback_data="start:new")],
         ]
     )
 
@@ -14,8 +22,8 @@ def start_keyboard() -> InlineKeyboardMarkup:
 def resume_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Продолжить", callback_data="start:continue")],
-            [InlineKeyboardButton(text="Начать заново", callback_data="restart:confirm")],
+            [InlineKeyboardButton(text=BTN_CONTINUE, callback_data="start:continue")],
+            [InlineKeyboardButton(text=BTN_RESTART, callback_data="restart:confirm")],
         ]
     )
 
@@ -35,8 +43,12 @@ def restart_confirm_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="Да, начать заново", callback_data="restart:yes"),
-                InlineKeyboardButton(text="Отмена", callback_data="restart:no"),
+                InlineKeyboardButton(
+                    text=BTN_RESTART_CONFIRM_YES, callback_data="restart:yes"
+                ),
+                InlineKeyboardButton(
+                    text=BTN_RESTART_CONFIRM_NO, callback_data="restart:no"
+                ),
             ]
         ]
     )

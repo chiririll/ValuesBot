@@ -13,14 +13,13 @@ from bot.db.sessions_repo import SessionsRepository
 from bot.handlers import build_router
 from bot.services.session_service import SessionService
 from bot.views.renderer import Renderer
+from bot.views.texts import BOT_COMMANDS
 
 logging.basicConfig(level=logging.INFO)
 
-BOT_COMMANDS = [
-    BotCommand(command="start", description="Начать или продолжить тест"),
-    BotCommand(command="undo", description="Отменить последний выбор"),
-    BotCommand(command="restart", description="Начать тест заново"),
-    BotCommand(command="result", description="Показать результат"),
+_AIOGRAM_COMMANDS = [
+    BotCommand(command=command, description=description)
+    for command, description in BOT_COMMANDS
 ]
 
 
@@ -36,7 +35,7 @@ async def run_bot() -> None:
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    await bot.set_my_commands(BOT_COMMANDS)
+    await bot.set_my_commands(_AIOGRAM_COMMANDS)
 
     dispatcher = Dispatcher()
     dispatcher.include_router(build_router(service, renderer))
