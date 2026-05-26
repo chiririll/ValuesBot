@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_VALUES_PATH = Path("res", "values.json")
-DEFAULT_DB_PATH = Path("sessions.db")
+DEFAULT_DB_PATH = Path("data", "sessions.db")
 
 
 @dataclass(frozen=True, slots=True)

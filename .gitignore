@@ -219,5 +219,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Sessions
-sessions.db
+# Runtime persistent data
+data/
