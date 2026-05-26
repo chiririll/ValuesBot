@@ -1,4 +1,4 @@
-"""Validate the production catalog at data/values.json.
+"""Validate the production catalog at res/values.json.
 
 These tests guard against accidental data corruption: missing categories,
 duplicate theme or value names (which would silently overwrite entries
@@ -34,7 +34,9 @@ def prod_catalog() -> Catalog:
 
 
 def test_file_exists() -> None:
-    assert DEFAULT_VALUES_PATH.is_file(), f"Missing production catalog at {DEFAULT_VALUES_PATH}"
+    assert (
+        DEFAULT_VALUES_PATH.is_file()
+    ), f"Missing production catalog at {DEFAULT_VALUES_PATH}"
 
 
 def test_file_is_valid_utf8_json(raw_data: dict) -> None:
@@ -47,9 +49,9 @@ def test_loads_without_error(prod_catalog: Catalog) -> None:
 
 def test_both_categories_present(prod_catalog: Catalog) -> None:
     for category_key in CATEGORY_ORDER:
-        assert category_key in prod_catalog.categories, (
-            f"Category '{category_key}' is missing from the production catalog"
-        )
+        assert (
+            category_key in prod_catalog.categories
+        ), f"Category '{category_key}' is missing from the production catalog"
 
 
 def test_no_unexpected_categories(raw_data: dict) -> None:
@@ -63,7 +65,9 @@ def test_category_has_non_empty_name_and_description(
 ) -> None:
     category = prod_catalog.categories[category_key]
     assert category.name.strip(), f"Category '{category_key}' has empty name"
-    assert category.description.strip(), f"Category '{category_key}' has empty description"
+    assert (
+        category.description.strip()
+    ), f"Category '{category_key}' has empty description"
 
 
 @pytest.mark.parametrize("category_key", CATEGORY_ORDER)
@@ -124,9 +128,9 @@ def test_worst_case_question_count_is_reasonable(prod_catalog: Catalog) -> None:
     """README promises ~100 questions in the worst case. Guard against
     accidentally bloating the catalog past a sensible UX limit."""
     total = initial_estimated_total(prod_catalog)
-    assert total <= WORST_CASE_QUESTIONS_HARD_LIMIT, (
-        f"Worst-case question count is {total}, exceeds limit of {WORST_CASE_QUESTIONS_HARD_LIMIT}"
-    )
+    assert (
+        total <= WORST_CASE_QUESTIONS_HARD_LIMIT
+    ), f"Worst-case question count is {total}, exceeds limit of {WORST_CASE_QUESTIONS_HARD_LIMIT}"
 
 
 def test_category_keys_in_expected_order(raw_data: dict) -> None:

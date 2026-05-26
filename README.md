@@ -54,7 +54,7 @@ uv run mypy bot                     # типы
 uv run pre-commit install           # один раз — хук на коммит
 ```
 
-Тесты используют компактный каталог `tests/fixtures/values.json`, а не продакшен-данные из `data/values.json`. CI прогоняет ruff, ruff-format, mypy и pytest на Python 3.11 и 3.12.
+Тесты используют компактный каталог `tests/fixtures/values.json`, а не продакшен-данные из `res/values.json`. CI прогоняет ruff, ruff-format, mypy и pytest на Python 3.11 и 3.12.
 
 Все пользовательские тексты собраны в одном месте — `bot/views/texts.py` — это и точка перевода, и единый источник для меню BotFather.
 
@@ -62,7 +62,7 @@ uv run pre-commit install           # один раз — хук на комми
 
 ## Формат каталога ценностей
 
-`data/values.json` — две категории (`terminal`, `instrumental`), каждая с тематическими группами и словарём ценностей:
+`res/values.json` — две категории (`terminal`, `instrumental`), каждая с тематическими группами и словарём ценностей:
 
 ```json
 {

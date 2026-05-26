@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_VALUES_PATH = Path("data", "values.json")
+DEFAULT_VALUES_PATH = Path("res", "values.json")
 DEFAULT_DB_PATH = Path("sessions.db")
 
 
