@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-VALUES_PATH = PROJECT_ROOT / "data" / "values.txt"
+VALUES_PATH = PROJECT_ROOT / "data" / "values.json"
 DB_PATH = PROJECT_ROOT / "sessions.db"
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")

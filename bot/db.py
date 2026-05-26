@@ -158,11 +158,11 @@ async def update_last_question_message(
 
 async def finish_session(
     user_id: int,
-    ranking: list[int],
-    state_json: str,
     *,
+    state_json: str,
     comparisons_done: int,
     estimated_total: int,
+    result_json: str,
 ) -> None:
     await save_session(
         user_id,
@@ -171,7 +171,7 @@ async def finish_session(
         comparisons_done=comparisons_done,
         estimated_total=estimated_total,
         is_finished=True,
-        result_json=json.dumps(ranking, ensure_ascii=False),
+        result_json=result_json,
     )
 
 

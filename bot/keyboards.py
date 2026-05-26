@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot.values import Value
-
 
 def start_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -22,15 +20,15 @@ def resume_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def question_keyboard(left: Value, right: Value) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=left.name, callback_data="pick:1"),
-                InlineKeyboardButton(text=right.name, callback_data="pick:2"),
-            ]
-        ]
-    )
+def question_keyboard(labels: list[str]) -> InlineKeyboardMarkup:
+    if not 2 <= len(labels) <= 3:
+        raise ValueError("question_keyboard expects 2 or 3 labels")
+
+    buttons = [
+        InlineKeyboardButton(text=label, callback_data=f"pick:{index + 1}")
+        for index, label in enumerate(labels)
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
 def restart_confirm_keyboard() -> InlineKeyboardMarkup:
