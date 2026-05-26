@@ -4,13 +4,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_VALUES_PATH = PROJECT_ROOT / "data" / "values.json"
-DEFAULT_DB_PATH = PROJECT_ROOT / "sessions.db"
+DEFAULT_VALUES_PATH = Path("data", "values.json")
+DEFAULT_DB_PATH = Path("sessions.db")
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +18,11 @@ class Settings:
 def load_settings() -> Settings:
     token = os.getenv("BOT_TOKEN")
     if not token:
-        raise RuntimeError("BOT_TOKEN is not set. Copy example.env to .env and fill in the token.")
+        raise RuntimeError("BOT_TOKEN is not set")
+
+    if not DEFAULT_VALUES_PATH.exists():
+        raise FileNotFoundError(f"Values file not found at {DEFAULT_VALUES_PATH}")
+
     return Settings(
         bot_token=token,
         values_path=DEFAULT_VALUES_PATH,
