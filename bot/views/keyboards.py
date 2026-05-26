@@ -43,12 +43,8 @@ def restart_confirm_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text=BTN_RESTART_CONFIRM_YES, callback_data="restart:yes"
-                ),
-                InlineKeyboardButton(
-                    text=BTN_RESTART_CONFIRM_NO, callback_data="restart:no"
-                ),
+                InlineKeyboardButton(text=BTN_RESTART_CONFIRM_YES, callback_data="restart:yes"),
+                InlineKeyboardButton(text=BTN_RESTART_CONFIRM_NO, callback_data="restart:no"),
             ]
         ]
     )

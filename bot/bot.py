@@ -18,8 +18,7 @@ from bot.views.texts import BOT_COMMANDS
 logging.basicConfig(level=logging.INFO)
 
 _AIOGRAM_COMMANDS = [
-    BotCommand(command=command, description=description)
-    for command, description in BOT_COMMANDS
+    BotCommand(command=command, description=description) for command, description in BOT_COMMANDS
 ]
 
 

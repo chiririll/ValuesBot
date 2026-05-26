@@ -56,8 +56,7 @@ def _format_value_option(value: ValueItem) -> str:
 def _format_theme_option(catalog: Catalog, theme: Theme) -> str:
     examples = ", ".join(theme_examples(theme, catalog, 3))
     return (
-        f"<b>{html.escape(theme.name)}</b>\n"
-        f"<i>{THEME_EXAMPLES_PREFIX}: {html.escape(examples)}</i>"
+        f"<b>{html.escape(theme.name)}</b>\n<i>{THEME_EXAMPLES_PREFIX}: {html.escape(examples)}</i>"
     )
 
 
